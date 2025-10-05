@@ -12,13 +12,18 @@
                 <el-table-column prop="id" label="ID" width="80" />
                 <el-table-column prop="name" label="Name" />
 
-                <el-table-column label="Role">
+                <el-table-column label="Roles">
                     <template #default="{ row }">
-                        <el-tag
-                            :type="row.role === 'admin' ? 'danger' : 'success'"
-                        >
-                            {{ row.role }}
-                        </el-tag>
+                        <div class="roles">
+                            <el-tag
+                                v-for="(role) in row.roles"
+                                :type="roleColor(role)"
+                                effect="dark"
+                                style="margin-right: 4px"
+                            >
+                                {{ formatRole(role) }}
+                            </el-tag>
+                        </div>
                     </template>
                 </el-table-column>
 
@@ -41,6 +46,7 @@
             v-if="selectedUser"
             :user="selectedUser"
             @close="selectedUser = null"
+            @updated="loadUsers"
         />
     </div>
 </template>
@@ -53,19 +59,56 @@ import UserRoleModal from './UserRoleModal.vue'
 const users = ref([])
 const selectedUser = ref(null)
 
-onMounted(() => {
+onMounted(loadUsers)
+function loadUsers() {
+    console.log('[UserList] loadUsers() called')
     authApi
         .get('/users')
         .then((response) => {
-            users.value = response.data
+            const body = response.data
+            if (body.success === false) {
+                ElNotification({
+                    title: 'Data fetch error',
+                    message: body.message || 'Failed to fetch user data.',
+                    type: 'error',
+                    duration: 2000,
+                })
+            }
+
+            users.value = body.data
         })
-        .catch(() => {
+        .catch((exception) => {
+            console.log(exception)
+
             users.value = [
-                { id: 1, name: 'Alice', role: 'admin' },
-                { id: 2, name: 'Bob', role: 'user' },
+                { id: 1, name: 'Alice', roles: ['ROLE_ADMIN', 'ROLE_USER'] },
+                { id: 2, name: 'Bob', roles: ['ROLE_USER'] },
             ]
         })
-})
+}
+
+function roleColor(role) {
+    switch (role) {
+        case 'ROLE_ADMIN':
+            return 'danger'
+        case 'ROLE_WEB_USER':
+            return 'success'
+        case 'ROLE_API_USER':
+            return 'warning'
+        case 'ROLE_USER':
+            return undefined
+        default:
+            return 'info'
+    }
+}
+
+function formatRole(role) {
+    return role
+        .replace('ROLE_', '')
+        .replace('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 function openRoleModal(user) {
     selectedUser.value = user
@@ -82,5 +125,10 @@ function openRoleModal(user) {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+}
+
+.roles {
+    display: flex;
+    flex-wrap: wrap;
 }
 </style>
