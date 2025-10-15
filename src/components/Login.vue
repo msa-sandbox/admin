@@ -28,12 +28,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { login } from '@/js/authService.js'
+import { login } from '@/js/services/authService.js'
 import { ElNotification } from 'element-plus'
 
-const email = ref('')
+const email    = ref('')
 const password = ref('')
-const loading = ref(false)
+const loading  = ref(false)
 
 const emit = defineEmits(['logged-in'])
 
@@ -48,11 +48,19 @@ async function handleLogin() {
         })
         emit('logged-in') // tell parent that login succeeded
     } catch (e) {
-        ElNotification({
-            title: 'Login failed',
-            message: e.response?.data?.error || 'Invalid email or password',
-            type: 'error',
-        })
+        if (e.response?.status === 429) {
+            ElNotification({
+                title: 'Login failed',
+                message: 'Too many requests',
+                type: 'error',
+            })
+        } else {
+            ElNotification({
+                title: 'Login failed',
+                message: e.response?.data?.error || 'Invalid email or password',
+                type: 'error',
+            })
+        }
     } finally {
         loading.value = false
     }

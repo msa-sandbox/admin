@@ -1,5 +1,5 @@
 <template>
-    <div class="app">
+    <div class="app" v-loading="loading">
         <header class="app-header" v-if="isLoggedIn">
             <h1>Admin Panel</h1>
             <el-button type="danger" plain @click="handleLogout">
@@ -18,17 +18,17 @@
 import { ref, onMounted } from 'vue'
 import Login from './components/Login.vue'
 import UserList from './components/UserList.vue'
-import { logout, refreshAccessToken } from '@/js/authService.js'
+import { logout, refreshAccessToken } from '@/js/services/authService.js'
 import { ElNotification } from 'element-plus'
 
-const isLoggedIn = ref(false)
 const loading = ref(true) // show spinner while loading
+const isLoggedIn = ref(false)
 
 onMounted(async () => {
     try {
         await refreshAccessToken() // get new access_token
         isLoggedIn.value = true
-    } catch (e) {
+    } catch {
         // Refresh failed — user is not authenticated
         isLoggedIn.value = false
     } finally {
@@ -37,13 +37,12 @@ onMounted(async () => {
 })
 
 async function handleLogout() {
-    await logout()
-    ElNotification({
-        title: 'Logged out',
-        message: 'You have been logged out successfully.',
-        type: 'info',
-    })
-    isLoggedIn.value = false
+    try {
+        await logout()
+        isLoggedIn.value = false
+    } catch (e) {
+        ElNotification.error('Logout failed')
+    }
 }
 </script>
 
@@ -51,7 +50,7 @@ async function handleLogout() {
 .app {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: calc(100vh - 20px);
     background: #f5f6fa;
     color: #2f3640;
 }

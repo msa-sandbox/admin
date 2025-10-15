@@ -53,7 +53,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { authApi } from '@/js/api.js'
+import { authApi } from '@/js/api/index.js'
 import UserRoleModal from './UserRoleModal.vue'
 
 const users = ref([])

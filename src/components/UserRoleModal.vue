@@ -31,7 +31,7 @@
 
 <script setup>
 import { onMounted, ref, watch, computed } from 'vue'
-import { authApi } from '@/js/api.js'
+import { authApi } from '@/js/api/index.js'
 import { ElNotification } from 'element-plus'
 
 const props = defineProps({
