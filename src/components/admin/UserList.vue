@@ -35,17 +35,16 @@
                             plain
                             @click="openRoleModal(row)"
                         >
-                            Change role
+                            Change
                         </el-button>
                     </template>
                 </el-table-column>
             </el-table>
         </el-card>
 
-        <UserRoleModal
-            v-if="selectedUser"
+        <UserPermission
+            v-model="dialogVisible"
             :user="selectedUser"
-            @close="selectedUser = null"
             @updated="loadUsers"
         />
     </div>
@@ -54,14 +53,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { authApi } from '@/js/api/index.js'
-import UserRoleModal from './UserRoleModal.vue'
+import UserPermission from './UserPermission.vue'
 
 const users = ref([])
 const selectedUser = ref(null)
+const dialogVisible = ref(false)
 
 onMounted(loadUsers)
 function loadUsers() {
-    console.log('[UserList] loadUsers() called')
     authApi
         .get('/users')
         .then((response) => {
@@ -79,11 +78,6 @@ function loadUsers() {
         })
         .catch((exception) => {
             console.log(exception)
-
-            users.value = [
-                { id: 1, name: 'Alice', roles: ['ROLE_ADMIN', 'ROLE_USER'] },
-                { id: 2, name: 'Bob', roles: ['ROLE_USER'] },
-            ]
         })
 }
 
@@ -112,6 +106,7 @@ function formatRole(role) {
 
 function openRoleModal(user) {
     selectedUser.value = user
+    dialogVisible.value = true
 }
 </script>
 

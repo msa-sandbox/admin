@@ -17,7 +17,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import Login from './components/Login.vue'
-import UserList from './components/UserList.vue'
+import UserList from './components/admin/UserList.vue'
 import { logout, refreshAccessToken } from '@/js/services/authService.js'
 import { ElNotification } from 'element-plus'
 
