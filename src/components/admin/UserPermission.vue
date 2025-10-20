@@ -4,6 +4,7 @@
         :title="'Permissions for ' + (props.user?.name || 'User')"
         width="700px"
         @open="getPermissions"
+        @close="clearAllData"
         destroy-on-close
     >
         <div v-loading="loading" style="min-height: 200px;">
@@ -31,8 +32,10 @@
                                     </el-icon>
                                 </template>
                                 <template #append>
-                                    <el-button @click="generateToken" :disabled="!crmAccess.api || generatingToken" icon="Refresh">Generate</el-button>
-                                    <el-button @click="copyToken" :disabled="!apiToken || !crmAccess.api" icon="CopyDocument">Copy</el-button>
+                                    <el-button-group>
+                                        <el-button type="primary" @click="generateToken" :disabled="!crmAccess.api || generatingToken">Generate</el-button>
+                                        <el-button type="primary" @click="copyToken" :disabled="!apiToken || !crmAccess.api">Copy</el-button>
+                                    </el-button-group>
                                 </template>
                             </el-input>
                         </div>
@@ -62,8 +65,8 @@
 
                     <div class="card-body" v-if="card.read === true">
                         <div class="card-body-group">
-                            <el-checkbox v-model="card.write" label="Write" />
-                            <el-checkbox v-model="card.delete" label="Delete" />
+                            <el-checkbox v-model="card.write" label="Write" @change="onWriteChange(cardName, card)" />
+                            <el-checkbox v-model="card.delete" label="Delete" @change="onDeleteChange(cardName, card)" />
                         </div>
 
                         <div class="card-body-group">
@@ -87,9 +90,10 @@
 
 <script setup>
 
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { authApi } from '@/js/api/index.js'
 import { Loading } from '@element-plus/icons-vue'
+import { ElNotification } from 'element-plus'
 
 const visible = defineModel({ default: false })
 const props = defineProps({
@@ -101,6 +105,7 @@ const apiToken = ref('');
 const loading = ref(false);
 const saving = ref(false);
 const generatingToken = ref(false);
+const savedPermissions = ref(null);
 
 // const emit = defineEmits('updated'])
 
@@ -132,12 +137,64 @@ function getPermissions() {
 }
 
 function save() {
+    // Check if at least one access is enabled
+    const hasAccess = crmAccess.value.web || crmAccess.value.api
+
+    // Check if at least one permission is set
+    const hasAnyPermission = crmCards.value ? Object.values(crmCards.value).some(card =>
+        card.read || card.write || card.delete || card.import || card.export
+    ) : false
+
+    // If access is enabled, check if at least one permission is set
+    if (hasAccess && !hasAnyPermission) {
+        ElNotification({
+            title: 'Validation error',
+            message: 'At least one permission must be enabled when access is granted',
+            type: 'warning',
+            duration: 3000,
+        })
+        return
+    }
+
+    // If at least one permission is set, check if at least one access is enabled
+    if (hasAnyPermission && !hasAccess) {
+        ElNotification({
+            title: 'Validation error',
+            message: 'At least one access (Web or API) must be enabled when permissions are set',
+            type: 'warning',
+            duration: 3000,
+        })
+        return
+    }
+
     saving.value = true
+
+    // Prepare permissions: if read is false, set all other permissions to false
+    const preparedPermissions = {}
+    if (crmCards.value) {
+        Object.keys(crmCards.value).forEach(key => {
+            const card = crmCards.value[key]
+            if (card.read === false) {
+                // If read is false, ensure all other permissions are false
+                preparedPermissions[key] = {
+                    read: false,
+                    write: false,
+                    delete: false,
+                    import: false,
+                    export: false
+                }
+            } else {
+                // If read is true, keep the permissions as is
+                preparedPermissions[key] = { ...card }
+            }
+        })
+    }
+
     // Prepare data to send
     const data = {
         crm: {
             access: crmAccess.value,
-            permissions: crmCards.value
+            permissions: preparedPermissions
         }
     }
 
@@ -162,8 +219,6 @@ function save() {
                 type: 'success',
                 duration: 2000,
             })
-
-            visible.value = false
         })
         .catch(() => {
             ElNotification({
@@ -254,6 +309,51 @@ function copyToken() {
     })
 }
 
+function onDeleteChange(_cardName, card) {
+    // If delete is checked, automatically check write
+    if (card.delete === true) {
+        card.write = true
+    }
+}
+
+function onWriteChange(_cardName, card) {
+    // If write is unchecked, automatically uncheck delete
+    if (card.write === false) {
+        card.delete = false
+    }
+}
+
+function clearAllData() {
+    crmCards.value = null
+    crmAccess.value = { web: false, api: false }
+    apiToken.value = ''
+    savedPermissions.value = null
+    loading.value = false
+    saving.value = false
+    generatingToken.value = false
+}
+
+// Watch for access changes - save/restore permissions based on web and api access
+watch(() => ({ web: crmAccess.value.web, api: crmAccess.value.api }), (newAccess, oldAccess) => {
+    const bothDisabled = !newAccess.web && !newAccess.api
+    const atLeastOneEnabled = newAccess.web || newAccess.api
+    const wasBothDisabled = oldAccess && !oldAccess.web && !oldAccess.api
+
+    // If both web and api are disabled, save current permissions and clear all
+    if (bothDisabled && !wasBothDisabled) {
+        // Save current permissions before clearing
+        if (crmCards.value) {
+            savedPermissions.value = JSON.parse(JSON.stringify(crmCards.value))
+        }
+        clearAll()
+    }
+
+    // If at least one is enabled and we have saved permissions, restore them
+    if (atLeastOneEnabled && wasBothDisabled && savedPermissions.value) {
+        crmCards.value = JSON.parse(JSON.stringify(savedPermissions.value))
+        savedPermissions.value = null
+    }
+}, { deep: true })
 
 
 </script>
