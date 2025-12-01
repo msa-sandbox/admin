@@ -3,14 +3,14 @@ FROM node:20-alpine AS dev
 WORKDIR /app
 
 # Install dependencies
-COPY package*.json ./
+COPY ../package*.json ./
 RUN npm install
 
 # Keep node_modules isolated inside container
 VOLUME [ "/app/node_modules" ]
 
 # Copy project sources
-COPY . .
+COPY .. .
 
 # Expose Vite dev server port
 EXPOSE 5173
@@ -24,12 +24,17 @@ CMD ["npm", "run", "dev"]
 FROM node:20-alpine AS build
 WORKDIR /app
 
-COPY package*.json ./
+COPY ../package*.json ./
 RUN npm ci
 
 # Copy sources and build for production
-COPY . .
-RUN npm run build
+COPY .. .
+
+# Must use env variables for k8s
+ARG MODE=minikube
+ENV MODE=$MODE
+
+RUN npm run build -- --mode $MODE
 
 
 
@@ -41,7 +46,7 @@ WORKDIR /usr/share/nginx/html
 COPY --from=build /app/dist .
 
 # Custom nginx config for SPA (important for Vue Router)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY ../nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

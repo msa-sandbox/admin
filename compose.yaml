@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      context: ./       # context - all project
+      dockerfile: docker/Dockerfile
+      target: dev       # use dev-stage (Vite hot reload)
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "80:5173"
